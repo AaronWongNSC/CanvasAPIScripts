@@ -178,6 +178,8 @@ for assignment in assignments_by_due_date:
         if assignment_date is None:
             continue
         student = str(submission['user_id'])
+        if student not in students.keys():
+            continue
         if submission['score'] > 0 and assignment_date > last_non_zero_score[student]:
             last_non_zero_score[student] = assignment_date
         
