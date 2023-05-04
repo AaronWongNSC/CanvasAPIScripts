@@ -106,16 +106,7 @@ for assignment in assignments.keys():
 # Get active students
 print('Getting active students...')
 url = API_URL + '/courses/{}/enrollments?type[]=StudentEnrollment&state[]=active&per_page=100'.format(COURSE_ID)
-students = []
-while True:
-    response = session.get(url, headers = auth)
-    current_link, next_link, last_link = get_navigation(response.headers['link'].split(','))
-    students = students + response.json()
-
-    if current_link == last_link:
-        break
-    url = next_link
-
+students = get_list(session, auth, url)
 students = { str(student['user_id']): student for student in students }
 
 # Get submissions by assignment
