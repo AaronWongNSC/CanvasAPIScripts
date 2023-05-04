@@ -115,15 +115,7 @@ all_submissions = {}
 for count, assignment in enumerate(assignments.keys()):
     print('{} of {} -- {}'.format(count + 1, len(assignments.keys()), assignment))
     url = API_URL + '/courses/{}/assignments/{}/submissions?per_page=100'.format(COURSE_ID, assignment)
-    submissions = []
-    while True:
-        response = session.get(url, headers = auth)
-        current_link, next_link, last_link = get_navigation(response.headers['link'].split(','))
-        submissions = submissions + response.json()
-    
-        if current_link == last_link:
-            break
-        url = next_link
+    submissions = get_list(session, auth, url)
     all_submissions.update({assignment: submissions})
 
 # Create Gradebook
