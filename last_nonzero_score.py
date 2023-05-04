@@ -136,7 +136,7 @@ for count, assignment in enumerate(assignments.keys()):
     all_submissions.update({assignment: submissions})
 
 # Create Gradebook
-print('Creating Gradebook')
+print('Creating Gradebook...')
 gradebook = { (student, assignment): 'NADA'
              for student in students.keys()
              for assignment in assignments.keys()}
