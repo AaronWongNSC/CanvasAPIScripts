@@ -168,7 +168,7 @@ for assignment in assignments_by_due_date:
         
 # Export File
 print('Exporting CSV...')
-now = datetime.now().strftime('%Y-%d-%m')
+now = datetime.now().strftime('%Y-%m-%d')
 
 with open('{}-LastNonzero-{}.csv'.format(now, COURSE_ID), 'w') as outfile:
     for student in students.keys():
