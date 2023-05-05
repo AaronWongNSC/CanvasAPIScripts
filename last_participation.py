@@ -87,6 +87,9 @@ API_URL = INSTITUTION_URL + "/api/v1"
 auth = {"Authorization": "Bearer {}".format(API_KEY)}
 session = requests.Session()
 
+# Get course name
+print('Getting course name...')
+
 # Get assignment groups
 print('Getting assignment groups...')
 url = API_URL + '/courses/{}/assignment_groups?per_page=100'.format(COURSE_ID)
@@ -99,9 +102,9 @@ url = API_URL + '/courses/{}/assignments?per_page=100'.format(COURSE_ID)
 assignments = get_list(session, auth, url)
 assignments = { assignment['id']: assignment for assignment in assignments }
 
-assignments_by_group = { assignment_group: [] for assignment_group in assignment_groups.keys()}
-for assignment in assignments.keys():    
-    assignments_by_group[ assignments[assignment]['assignment_group_id'] ].append(assignment)
+assignments_by_group_id = { assignment_group_id: [] for assignment_group_id in assignment_groups}
+for assignment_id in assignments:    
+    assignments_by_group_id[ assignments[assignment_id]['assignment_group_id'] ].append(assignment_id)
 
 # Get active students
 print('Getting active students...')
@@ -112,69 +115,75 @@ students = { str(student['user_id']): student for student in students }
 # Get submissions by assignment
 print('Getting submissions...')
 all_submissions = {}
-for count, assignment in enumerate(assignments.keys()):
-    print('{} of {} -- {}'.format(count + 1, len(assignments.keys()), assignment))
-    url = API_URL + '/courses/{}/assignments/{}/submissions?per_page=100'.format(COURSE_ID, assignment)
+for count, assignment_id in enumerate(assignments):
+    print('{} of {} -- {}'.format(count + 1, len(assignments), assignment_id))
+    url = API_URL + '/courses/{}/assignments/{}/submissions?per_page=100'.format(COURSE_ID, assignment_id)
     submissions = get_list(session, auth, url)
-    all_submissions.update({assignment: submissions})
+    all_submissions.update({assignment_id: submissions})
 
-# Create Gradebook
-print('Creating Gradebook...')
-gradebook = { (student, assignment): 'NADA'
-             for student in students.keys()
-             for assignment in assignments.keys()}
-
-for assignment in assignments.keys():
-    for submission in all_submissions[assignment]:
-        student = str(submission['user_id'])
-        if student in students.keys():
-            if type(submission['score']) == float:
-                gradebook[ (student, assignment) ] = submission['score']
-            elif submission['excused'] == True:
-                gradebook[ (student, assignment) ] = 'EX'
-            else:
-                gradebook[ (student, assignment) ] = ''
-
-## Determine last nonzero score
-print('Determining Last Nonzero Score...')
-
-# Order assignments
+# Sort the assignments by date
+print('Sorting Assignments')
 
 due_dates = [ z_to_dt(assignments[assignment]['due_at']) for assignment in assignments ]
 due_dates = list(set([ date for date in due_dates if date is not None]))
 due_dates.sort()
 due_dates.append(None)
 
-assignments_by_due_date = [ assignment
+assignment_ids_by_due_date = [ assignment_id
                            for date in due_dates
-                           for assignment in assignments
-                           if z_to_dt(assignments[assignment]['due_at']) == date]
+                           for assignment_id in assignments
+                           if z_to_dt(assignments[assignment_id]['due_at']) == date]
 
-first_due_date = z_to_dt(assignments[assignments_by_due_date[0]]['due_at'])
-last_non_zero_score = { student: first_due_date for student in students.keys() }
+## Determine last nonzero score
+print('Determining Last Nonzero Score...')
 
-for assignment in assignments_by_due_date:
-    for submission in all_submissions[assignment]:
+first_due_date = z_to_dt(assignments[assignment_ids_by_due_date[0]]['due_at'])
+last_non_zero_score = { student_id: first_due_date for student_id in students }
+
+for assignment_id in assignment_ids_by_due_date:
+    for submission in all_submissions[assignment_id]:
         if type(submission['score']) != float:
             continue
-        assignment_date = z_to_dt(assignments[assignment]['due_at'])
+        assignment_date = z_to_dt(assignments[assignment_id]['due_at'])
         if assignment_date is None:
             continue
-        student = str(submission['user_id'])
-        if student not in students.keys():
+        student_id = str(submission['user_id'])
+        if student_id not in students:
             continue
-        if submission['score'] > 0 and assignment_date > last_non_zero_score[student]:
-            last_non_zero_score[student] = assignment_date
-        
+        if submission['score'] > 0 and assignment_date > last_non_zero_score[student_id]:
+            last_non_zero_score[student_id] = assignment_date
+
+## Determine last submission
+print('Determining Last Submission...')
+
+last_submission = { student_id: None for student_id in students }
+
+for submission_id in all_submissions:
+    for submission in all_submissions[submission_id]:
+        student_id = str(submission['user_id'])
+        submitted_at = z_to_dt(submission['submitted_at'])
+        if submitted_at is None:
+            continue
+        if student_id not in students:
+            continue
+
+        if last_submission[student_id] == None:
+            last_submission[student_id] = submitted_at
+            continue
+        if submitted_at > last_submission[student_id]:
+            last_submission[student_id] = submitted_at
+
 # Export File
 print('Exporting CSV...')
-now = datetime.now().strftime('%Y-%m-%d')
+now = datetime.now().strftime('%Y-%m-%d-%H%M')
 
 with open('{}-LastNonzero-{}.csv'.format(now, COURSE_ID), 'w') as outfile:
-    for student in students.keys():
-        outfile.write('"{}",{},{}\n'.format(
-            students[student]['user']['sortable_name'],
-            students[student]['user']['sis_user_id'],
-            last_non_zero_score[student]))
+    outfile.write('Student,ID,Last Nonzero Score,Last Submission\n')
+    for student_id in students:
+        outfile.write('"{}",{},{},{}\n'.format(
+            students[student_id]['user']['sortable_name'],
+            students[student_id]['user']['sis_user_id'],
+            last_non_zero_score[student_id],
+            last_submission[student_id]))
     
     print('Success!')
