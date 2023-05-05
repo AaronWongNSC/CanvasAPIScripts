@@ -87,9 +87,6 @@ API_URL = INSTITUTION_URL + "/api/v1"
 auth = {"Authorization": "Bearer {}".format(API_KEY)}
 session = requests.Session()
 
-# Get course name
-print('Getting course name...')
-
 # Get assignment groups
 print('Getting assignment groups...')
 url = API_URL + '/courses/{}/assignment_groups?per_page=100'.format(COURSE_ID)
@@ -177,8 +174,8 @@ for submission_id in all_submissions:
 print('Exporting CSV...')
 now = datetime.now().strftime('%Y-%m-%d-%H%M')
 
-with open('{}-LastNonzero-{}.csv'.format(now, COURSE_ID), 'w') as outfile:
-    outfile.write('Student,ID,Last Nonzero Score,Last Submission\n')
+with open('{}-LastParticipation-{}.csv'.format(now, COURSE_ID), 'w') as outfile:
+    outfile.write('Student,ID,Last Nonzero Assignment Due Date,Last Submission\n')
     for student_id in students:
         outfile.write('"{}",{},{},{}\n'.format(
             students[student_id]['user']['sortable_name'],
